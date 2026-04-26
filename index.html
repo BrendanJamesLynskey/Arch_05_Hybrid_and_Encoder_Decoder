@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arch 05 — Hybrid &amp; Encoder-Decoder — Jamba, T5, Byte-Level Models</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-card: #0d1117;
+            --bg-code: #161b22;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent: #76B900;
+            --accent-dim: #76B90044;
+            --accent-glow: #76B90033;
+            --border: #21262d;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            --font-body: 'Inter', sans-serif;
+            --max-width: 900px;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 17px;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            position: relative;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .hero > * { position: relative; z-index: 1; }
+        .series-label {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+        .hero h1 .accent { color: var(--accent); }
+        .hero .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 640px;
+            margin-bottom: 2rem;
+        }
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 2.5rem;
+        }
+        .tag {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+            white-space: nowrap;
+        }
+        .pipeline {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+            max-width: var(--max-width);
+        }
+        .pipeline-step {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 0.3rem 0.7rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .pipeline-arrow { color: var(--accent); font-size: 0.9rem; font-weight: 700; }
+        .slide {
+            min-height: 100vh;
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .slide-number {
+            font-family: var(--font-display);
+            font-size: 5rem;
+            font-weight: 700;
+            color: var(--accent-dim);
+            position: absolute;
+            top: 2rem;
+            right: 1.5rem;
+            line-height: 1;
+            user-select: none;
+        }
+        .slide h2 {
+            font-family: var(--font-display);
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            line-height: 1.25;
+        }
+        .slide h3 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .slide p { margin-bottom: 1rem; color: var(--text-secondary); }
+        .slide p strong { color: var(--text-primary); }
+        .slide ul, .slide ol { margin-bottom: 1rem; padding-left: 1.5rem; color: var(--text-secondary); }
+        .slide li { margin-bottom: 0.4rem; }
+        .slide li strong { color: var(--text-primary); }
+        .slide code {
+            font-family: var(--font-mono);
+            font-size: 0.88em;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            padding: 0.05rem 0.35rem;
+            border-radius: 3px;
+            color: #c9d1d9;
+        }
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 1.25rem 0;
+            overflow: hidden;
+        }
+        .code-header {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            background: rgba(118, 185, 0, 0.08);
+            padding: 0.4rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .code-block pre { margin: 0; padding: 1rem; overflow-x: auto; }
+        .code-block code {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #c9d1d9;
+            background: transparent;
+            border: none;
+            padding: 0;
+        }
+        .kw { color: #ff7b72; }
+        .fn { color: #d2a8ff; }
+        .str { color: #a5d6ff; }
+        .cm { color: #8b949e; font-style: italic; }
+        .num { color: #79c0ff; }
+        .type { color: #ffa657; }
+        .dir { color: #ff7b72; }
+        .mac { color: #ffa657; }
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.25rem 0;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th {
+            background: var(--bg-code);
+            color: var(--accent);
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-display);
+            white-space: nowrap;
+        }
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) td { background: rgba(13, 17, 23, 0.5); }
+        .diagram-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .diagram-box {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-align: center;
+            white-space: nowrap;
+        }
+        .diagram-box.accent { border-color: var(--accent); color: var(--accent); background: rgba(118, 185, 0, 0.08); }
+        .diagram-box.dim { color: var(--text-secondary); border-color: var(--border); }
+        .diagram-arrow { color: var(--accent); font-size: 1.3rem; font-weight: 700; }
+        .diagram-vertical {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .diagram-vertical .diagram-arrow { font-size: 1.1rem; }
+        .hierarchy {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .hierarchy-level { display: flex; align-items: center; gap: 0.75rem; }
+        .hierarchy-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            min-width: 80px;
+            text-align: right;
+        }
+        .hierarchy-items { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+        .hierarchy-item {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .hierarchy-item.accent { border-color: var(--accent); color: var(--accent); background: rgba(118, 185, 0, 0.08); }
+        .diagram-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .diagram-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        .diagram-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .diagram-panel {
+            padding: 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .diagram-panel.accent-border { border-left: 3px solid var(--accent); }
+        .diagram-panel h4 {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+        .diagram-panel p, .diagram-panel ul { font-size: 0.85rem; }
+        .callout {
+            background: var(--bg-card);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .callout p { margin-bottom: 0; }
+        .callout p + p { margin-top: 0.5rem; }
+        .callout .callout-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.3rem;
+        }
+        .contents-list { list-style: none; padding-left: 0; counter-reset: contents; }
+        .contents-list li {
+            counter-increment: contents;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .contents-list li:last-child { border-bottom: none; }
+        .contents-list li::before {
+            content: counter(contents, decimal-leading-zero);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            min-width: 2rem;
+        }
+        .contents-list a { color: var(--text-primary); text-decoration: none; transition: color 0.2s; }
+        .contents-list a:hover { color: var(--accent); }
+        .footer {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            max-width: var(--max-width);
+            margin: 0 auto;
+        }
+        .footer a { color: var(--accent); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+        .canvas-wrap {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1.25rem 0;
+            overflow-x: auto;
+        }
+        .canvas-wrap canvas, .canvas-wrap svg { display: block; margin: 0 auto; max-width: 100%; }
+        .badge {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 0.1rem 0.45rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            vertical-align: middle;
+            margin-left: 0.3rem;
+        }
+        .badge.ok    { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+        .badge.warn  { border-color: #ffa657; color: #ffa657; background: rgba(255,166,87,0.08); }
+        .badge.bad   { border-color: #ff7b72; color: #ff7b72; background: rgba(255,123,114,0.08); }
+        @media (max-width: 640px) {
+            .slide { padding: 3rem 1rem; min-height: auto; }
+            .slide-number { font-size: 3rem; top: 1.5rem; right: 1rem; }
+            .slide h2 { font-size: 1.5rem; }
+            .diagram-grid.cols-2, .diagram-grid.cols-3 { grid-template-columns: 1fr; }
+            .pipeline { gap: 0.15rem; }
+            .pipeline-step { font-size: 0.6rem; padding: 0.2rem 0.4rem; }
+            .hero h1 { font-size: 1.8rem; }
+            table { font-size: 0.78rem; }
+        }
+    </style>
+</head>
+<body>
+<header class="hero">
+    <div class="series-label">Modern Architectures Series &mdash; Presentation 05</div>
+    <h1>Hybrid &amp; <span class="accent">Encoder-Decoder</span> Architectures</h1>
+    <p class="subtitle">Beyond decoder-only: Jamba and Zamba&rsquo;s Mamba-attention interleaving, T5/FLAN-T5 for structured tasks, when bidirectional encoding wins, byte-level models (ByT5, Charformer), and a practical decision tree for architecture selection.</p>
+
+    <div class="tags">
+        <span class="tag">Jamba</span>
+        <span class="tag">Zamba</span>
+        <span class="tag">T5</span>
+        <span class="tag">FLAN-T5</span>
+        <span class="tag">ByT5</span>
+        <span class="tag">Charformer</span>
+        <span class="tag">Encoder-Decoder</span>
+    </div>
+
+    <div class="pipeline">
+        <span class="pipeline-step">Decoder-only</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Hybrid (Jamba)</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Encoder-Decoder</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Byte-level</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Choose</span>
+    </div>
+</header>
+
+<section class="slide" id="slide-00">
+    <div class="slide-number">00</div>
+    <h2>Topics We&rsquo;ll Cover</h2>
+    <ul class="contents-list">
+        <li><a href="#slide-01">Hybrid Architectures &mdash; Jamba, Zamba</a></li>
+        <li><a href="#slide-02">Why Mix Mamba and Attention</a></li>
+        <li><a href="#slide-03">T5 / FLAN-T5 &mdash; Encoder-Decoder for Structured Tasks</a></li>
+        <li><a href="#slide-04">When Encoder-Decoder Beats Decoder-Only</a></li>
+        <li><a href="#slide-05">Modern Uses &mdash; Translation, Classification, Structured Extraction</a></li>
+        <li><a href="#slide-06">Char/Byte Models (ByT5, Charformer) &mdash; Tokenisation-Free</a></li>
+        <li><a href="#slide-07">Rotation Between Paradigms &mdash; What&rsquo;s Likely to Dominate</a></li>
+        <li><a href="#slide-08">Decision Tree for Architecture Selection</a></li>
+        <li><a href="#slide-09">What to Take Away</a></li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-01">
+    <div class="slide-number">01</div>
+    <h2>Hybrid Architectures &mdash; Jamba, Zamba</h2>
+    <p>The hybrid Mamba-attention family emerged in 2024 as a pragmatic synthesis: use Mamba layers for cheap O(T) bulk computation while retaining periodic full-attention layers for in-context recall and associative retrieval. Two models define the space.</p>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Model</th><th>Total params</th><th>Architecture</th><th>Context</th><th>Fits on</th></tr></thead>
+            <tbody>
+                <tr><td>Jamba (AI21, Mar 2024)</td><td>52B (12B active MoE)</td><td>Transformer-Mamba blocks + MoE FFN; 1 attn per 7 Mamba</td><td>256K</td><td>1&times; 80GB GPU</td></tr>
+                <tr><td>Jamba-1.5 Mini (Aug 2024)</td><td>12B</td><td>Same hybrid, smaller</td><td>256K</td><td>1&times; 24GB GPU</td></tr>
+                <tr><td>Zamba (Zyphra, Jun 2024)</td><td>7B</td><td>Shared single attn layer + 6 Mamba per block; 35B training tokens</td><td>32K</td><td>1&times; 24GB GPU</td></tr>
+                <tr><td>Zamba2-7B (Nov 2024)</td><td>7B</td><td>Shared &amp; routed attn layers + LoRA adapters between blocks</td><td>128K</td><td>1&times; 24GB GPU</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>Jamba layer structure</h3>
+    <div class="diagram-flow">
+        <div class="diagram-box accent">Attention</div>
+        <span class="diagram-arrow">&rarr;</span>
+        <div class="diagram-box">Mamba</div>
+        <span class="diagram-arrow">&rarr;</span>
+        <div class="diagram-box">Mamba</div>
+        <span class="diagram-arrow">&rarr;</span>
+        <div class="diagram-box">Mamba</div>
+        <span class="diagram-arrow">&rarr;</span>
+        <div class="diagram-box">MoE FFN</div>
+        <span class="diagram-arrow">&rarr;</span>
+        <div class="diagram-box">Mamba</div>
+        <span class="diagram-arrow">&rarr;</span>
+        <div class="diagram-box">Mamba</div>
+        <span class="diagram-arrow">&rarr;</span>
+        <div class="diagram-box">Mamba</div>
+        <span class="diagram-arrow">&rarr;</span>
+        <div class="diagram-box accent">Attention</div>
+        <span class="diagram-arrow">&rarr;</span>
+        <div class="diagram-box">&hellip;</div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Why MoE + Mamba hybrid is synergistic</div>
+        <p>Jamba combines MoE (deck 01) with Mamba (deck 02) in the same model. The MoE FFN provides large total parameter count at low active-param cost; Mamba provides O(1) inference state; the sparse attention layers provide recall. Each of the three components contributes orthogonally to the quality-cost trade-off.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-02">
+    <div class="slide-number">02</div>
+    <h2>Why Mix Mamba and Attention</h2>
+    <p>The mixing ratio is not arbitrary &mdash; it reflects a deliberate allocation of KV cache budget and compute. Understanding the engineering trade-off requires comparing what each layer type contributes per FLOP.</p>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>What attention gives you</h4>
+            <p><strong>Exact in-context retrieval</strong> &mdash; any query can attend to any key, O(T<sup>2</sup>). Perfect for: copy tasks, multi-hop reasoning over recently-read facts, associative recall (MQAR). Cost: KV cache grows with context; quadratic FLOPs at training.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>What Mamba gives you</h4>
+            <p><strong>Constant-state recurrence</strong> &mdash; O(1) per token at inference. Good for: pattern accumulation, compression of long context into a summary state, local syntactic processing. Cost: cannot exactly recall a token from 50K steps ago if the state compressed it away.</p>
+        </div>
+    </div>
+
+    <h3>Empirical ratio findings</h3>
+    <p>Ablation studies in the Jamba and Zamba papers:</p>
+    <ul>
+        <li>Below 1:3 (attn:Mamba), the model degrades noticeably on long-context recall benchmarks (SCROLLS, LongBench).</li>
+        <li>Above 1:3, quality is essentially flat &mdash; additional attention layers add KV cache cost without commensurate benefit.</li>
+        <li>1:7 (Jamba) and 1:6 (Zamba) sit at the Pareto frontier: recall performance close to a pure transformer, memory close to a pure Mamba model.</li>
+    </ul>
+
+    <div class="callout">
+        <div class="callout-label">Shared-attention variant (Zamba)</div>
+        <p>Zamba uses a <em>single</em> attention layer whose KV cache is shared across multiple Mamba blocks. This reduces KV cache to a <em>constant</em> regardless of depth (only one set of KVs is retained, not one per attention layer). The shared attention layer effectively acts as a global information bus that all Mamba layers can query.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-03">
+    <div class="slide-number">03</div>
+    <h2>T5 / FLAN-T5 &mdash; Encoder-Decoder for Structured Tasks</h2>
+    <p><strong>T5</strong> (Raffel et al. 2020, Google) reframed every NLP task as a text-to-text problem, unifying classification, translation, summarisation, and QA under a single encoder-decoder transformer. <strong>FLAN-T5</strong> (Wei et al. 2022) fine-tuned T5 on &gt;1800 instruction tasks, producing the strongest encoder-decoder instruction follower available in open weights.</p>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Model</th><th>Params</th><th>Encoder layers</th><th>Decoder layers</th><th>d<sub>model</sub></th></tr></thead>
+            <tbody>
+                <tr><td>T5-Small</td><td>60M</td><td>6</td><td>6</td><td>512</td></tr>
+                <tr><td>T5-Base</td><td>220M</td><td>12</td><td>12</td><td>768</td></tr>
+                <tr><td>T5-Large</td><td>770M</td><td>24</td><td>24</td><td>1024</td></tr>
+                <tr><td>T5-XL</td><td>3B</td><td>24</td><td>24</td><td>2048</td></tr>
+                <tr><td>T5-XXL / FLAN-T5-XXL</td><td>11B</td><td>24</td><td>24</td><td>4096</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>T5 architectural choices</h3>
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Relative position biases</h4>
+            <p>T5 uses a simple relative position encoding: a learned scalar bias per (head, relative-distance-bucket) pair, added to attention logits. 32 distance buckets, log-spaced. No absolute positional encodings at all &mdash; which is why T5 generalises to longer sequences at inference without modification.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Layer norm placement</h4>
+            <p>T5 uses <em>pre-LN</em> (normalise before the sublayer), a simplified RMSNorm variant without learned bias or affine parameters. This stabilises training at larger scales and was later adopted by LLaMA. The original T5 released in 2020 predates its widespread use in decoder-only models.</p>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-04">
+    <div class="slide-number">04</div>
+    <h2>When Encoder-Decoder Beats Decoder-Only</h2>
+    <p>The encoder-decoder architecture has a structural advantage for tasks where the <strong>input should be fully processed before the output begins</strong>. Decoder-only models process input and output in the same left-to-right pass &mdash; each output token can attend to input tokens, but input tokens cannot attend to future input tokens that appear after them in a long prompt.</p>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Encoder: bidirectional context over input</h4>
+            <p>Every encoder token attends to every other encoder token. For a 512-token source document, the encoder builds a representation where token 1 has seen tokens 1&ndash;512 before the decoder generates its first output token. Bidirectional attention captures both left and right context.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Decoder: causal attention over output</h4>
+            <p>The decoder is a standard causal transformer. It cross-attends to the encoder output at every layer. Cross-attention keys and values are from the encoder; queries from the decoder. This is the information pathway from fully-contextualised input to generated output.</p>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Tasks where encoder-decoder excels</div>
+        <p>
+        <strong>Translation:</strong> The encoder can see the full source sentence before generating the first target word. Critical for long-distance word-order differences (German subordinate clauses, Japanese SOV). <br>
+        <strong>Classification over long inputs:</strong> A [CLS]-like pooled encoder representation over a 4K-token document outperforms a decoder-only model&rsquo;s final-token embedding. <br>
+        <strong>Summarisation (extractive):</strong> Selecting spans from the input benefits from full bidirectional context. <br>
+        <strong>Structured prediction with schema:</strong> Schema-constrained output (XML, SQL, JSON) where the encoder has processed the schema and the decoder generates a valid instantiation.
+        </p>
+    </div>
+</section>
+
+<section class="slide" id="slide-05">
+    <div class="slide-number">05</div>
+    <h2>Modern Uses &mdash; Translation, Classification, Structured Extraction</h2>
+    <p>Encoder-decoder models did not vanish when GPT-3 appeared &mdash; they continue to dominate specific production use-cases in 2025.</p>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Machine translation</h4>
+            <p>NLLB-200 (Meta, 2022): 3.3B encoder-decoder supporting 200 languages. Still the standard for low-resource language pairs. OPUS-MT (Helsinki NLP): 1000+ T5-style translation models under 300M params each, deployed at Google Translate and DeepL as quality-check components.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Document classification</h4>
+            <p>FLAN-T5-Large (780M) outperforms GPT-3 (175B) on zero-shot classification benchmarks (SuperGLUE). Reason: the encoder&rsquo;s bidirectional representation is a better input to a classification head than a decoder-only model&rsquo;s causal embedding. Used in many enterprise document-routing pipelines.</p>
+        </div>
+    </div>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Structured information extraction</h4>
+            <p>Extract JSON records from unstructured text: product attributes from catalogue descriptions, medical entities from clinical notes. FLAN-T5 with few-shot prompting generates schema-valid JSON more reliably than decoder-only models of similar size due to the bidirectional encoder&rsquo;s full source comprehension before generation begins.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Semantic similarity &amp; reranking</h4>
+            <p>Encoder-only models (BERT, DeBERTa, sentence-transformers) are still the gold standard for embedding-based retrieval. Cross-encoder rerankers (MonoT5, RankT5) use the encoder-decoder architecture for query-document relevance scoring &mdash; covered in the RAG series.</p>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">FLAN-T5 as a distillation target</div>
+        <p>FLAN-T5-XXL (11B) is frequently used as the <em>teacher model</em> for distilling smaller task-specific models. Its instruction-tuned representations are highly transferable. The student is typically an encoder-only or encoder-decoder model of 100&ndash;300M parameters, making FLAN-T5-based distillation a cost-effective way to build production classifiers and extractors.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-06">
+    <div class="slide-number">06</div>
+    <h2>Char/Byte Models (ByT5, Charformer) &mdash; Tokenisation-Free</h2>
+    <p>BPE and SentencePiece tokenisation introduce a systematic blind spot: languages with complex morphology (Finnish, Turkish, Arabic), code-switching, noisy user-generated text, and adversarial inputs (character-level attacks). Byte-level models eliminate the tokeniser entirely.</p>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Model</th><th>Granularity</th><th>Vocab size</th><th>Sequence overhead</th><th>Key paper</th></tr></thead>
+            <tbody>
+                <tr><td>ByT5 (Google, 2022)</td><td>UTF-8 bytes</td><td>256 + 3 special</td><td>~3&ndash;4&times; longer vs T5</td><td>Xue et al., arXiv 2105.13626</td></tr>
+                <tr><td>Charformer (Google, 2022)</td><td>Char n-grams &rarr; subword via GBST</td><td>Unicode chars</td><td>~2&times; longer</td><td>Tay et al., arXiv 2106.12672</td></tr>
+                <tr><td>MegaByte (Meta, 2023)</td><td>Raw bytes, patch hierarchy</td><td>256</td><td>Patch-level amortisation</td><td>Yu et al., arXiv 2305.07185</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>ByT5 architecture</h3>
+    <p>ByT5 is a vanilla T5 operating on UTF-8 byte sequences. The encoder is made <strong>wider and deeper</strong> than the decoder (6&times; encoder layers per decoder layer) to handle the longer input sequences without proportional compute increase in the decoder. The byte-level encoder is the expensive part; the decoder remains compact.</p>
+
+    <div class="code-block">
+        <div class="code-header">ByT5-Large: encoder/decoder dimension split</div>
+<pre><code>Encoder: <span class="num">36</span> layers, d_model=<span class="num">1024</span>   <span class="cm"># handles long byte sequences</span>
+Decoder: <span class="num">6</span>  layers, d_model=<span class="num">1024</span>   <span class="cm"># generates subword-level output</span>
+Total params: <span class="num">1.2</span>B vs T5-Large <span class="num">770</span>M  <span class="cm"># ~57% overhead for byte granularity</span></code></pre>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Where ByT5 wins</div>
+        <p>ByT5 matches T5 on standard English NLP (GLUE, SuperGLUE) and <strong>substantially outperforms</strong> it on: noisy text (&gt;+5 F1 on GermEval, TweetNLP), multilingual morphological tasks, character-level robustness (adversarial character swaps), and low-resource languages with OOV tokens. The 3&ndash;4&times; sequence-length overhead is the main engineering cost &mdash; mitigated by MegaByte-style patching in later work.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-07">
+    <div class="slide-number">07</div>
+    <h2>Rotation Between Paradigms &mdash; What&rsquo;s Likely to Dominate</h2>
+    <p>The LLM field has oscillated between paradigms every few years. Understanding the trajectory helps make architectural bets.</p>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Era</th><th>Dominant paradigm</th><th>Why it won</th><th>Why the next era superseded it</th></tr></thead>
+            <tbody>
+                <tr><td>2017&ndash;2019</td><td>Encoder-only (BERT)</td><td>Bidirectional pretraining on MLM</td><td>GPT-3: decoder-only scales better for generation</td></tr>
+                <tr><td>2019&ndash;2021</td><td>Encoder-decoder (T5)</td><td>Text-to-text unification</td><td>Few-shot GPT-3 removed need for fine-tuning</td></tr>
+                <tr><td>2020&ndash;present</td><td>Decoder-only (GPT, LLaMA)</td><td>Simpler pretraining, better scaling, instruction tuning</td><td>Efficiency pressure &rarr; MoE, SSM hybrids</td></tr>
+                <tr><td>2024&ndash;?</td><td>Hybrid decoder + MoE/SSM</td><td>Better param/FLOP trade-off, long context</td><td>Diffusion LMs if quality gap closes?</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">The pragmatic 2025 view</div>
+        <p>Decoder-only transformers will remain dominant for general-purpose LLMs through 2026 &mdash; the ecosystem (frameworks, RLHF pipelines, tooling) is too mature to displace quickly. MoE will be standard at 100B+ scale. SSM hybrids (Jamba-class) will capture the cost-sensitive long-context niche. Encoder-decoder will persist in structured prediction and translation. Diffusion LMs are likely 2&ndash;3 years from production dominance but will appear in code generation pipelines earlier (Mercury is already deployed).</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-08">
+    <div class="slide-number">08</div>
+    <h2>Decision Tree for Architecture Selection</h2>
+    <p>Given a new task, which architecture should you reach for? The following decision tree encodes the empirical wisdom from decks 01&ndash;05.</p>
+
+    <div class="canvas-wrap">
+        <svg viewBox="0 0 680 400" width="680" height="400" xmlns="http://www.w3.org/2000/svg">
+            <style>
+                .dt-box  { fill: #161b22; stroke: #30363d; stroke-width: 1; }
+                .dt-acc  { fill: rgba(118,185,0,0.10); stroke: #76B900; stroke-width: 1.5; }
+                .dt-warn { fill: rgba(255,166,87,0.08); stroke: #ffa657; stroke-width: 1.5; }
+                .dt-lbl  { fill: #e6edf3; font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 600; }
+                .dt-sub  { fill: #8b949e; font-family: 'JetBrains Mono', monospace; font-size: 9px; }
+                .dt-arr  { stroke: #76B900; stroke-width: 1.2; fill: none; marker-end: url(#mhdt); }
+                .dt-no   { stroke: #ffa657; stroke-width: 1.2; fill: none; marker-end: url(#modt); }
+            </style>
+            <defs>
+                <marker id="mhdt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#76B900"/>
+                </marker>
+                <marker id="modt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#ffa657"/>
+                </marker>
+            </defs>
+
+            <rect x="230" y="10" width="220" height="40" rx="5" class="dt-box"/>
+            <text x="250" y="27" class="dt-lbl">Need generation (text output)?</text>
+            <text x="320" y="42" class="dt-sub">START HERE</text>
+
+            <path d="M 340 50 L 340 75" class="dt-arr"/>
+            <text x="345" y="68" class="dt-sub">YES</text>
+
+            <rect x="200" y="75" width="280" height="40" rx="5" class="dt-box"/>
+            <text x="215" y="92" class="dt-lbl">Requires full bidirectional input</text>
+            <text x="225" y="107" class="dt-sub">comprehension before output?</text>
+
+            <path d="M 200 95 L 140 95 L 140 170" class="dt-no"/>
+            <text x="145" y="115" class="dt-sub">NO</text>
+            <path d="M 340 115 L 340 145" class="dt-arr"/>
+            <text x="345" y="132" class="dt-sub">YES</text>
+
+            <rect x="250" y="145" width="180" height="35" rx="5" class="dt-acc"/>
+            <text x="265" y="160" class="dt-lbl">Encoder-Decoder</text>
+            <text x="262" y="173" class="dt-sub">T5, FLAN-T5, NLLB</text>
+
+            <rect x="60"  y="170" width="160" height="35" rx="5" class="dt-box"/>
+            <text x="70"  y="186" class="dt-lbl">Context &gt; 128K tokens?</text>
+            <text x="72"  y="199" class="dt-sub">or memory-constrained?</text>
+
+            <path d="M 60 187 L 10 187 L 10 250 L 60 250" class="dt-arr"/>
+            <text x="12" y="222" class="dt-sub">YES</text>
+            <path d="M 140 205 L 140 250" class="dt-no"/>
+            <text x="145" y="225" class="dt-sub">NO</text>
+
+            <rect x="60"  y="250" width="160" height="35" rx="5" class="dt-acc"/>
+            <text x="70"  y="263" class="dt-lbl">Hybrid SSM-Attn</text>
+            <text x="65"  y="278" class="dt-sub">Jamba, Zamba, or SSM</text>
+
+            <rect x="80"  y="330" width="140" height="35" rx="5" class="dt-box"/>
+            <text x="88"  y="346" class="dt-lbl">100B+ param budget?</text>
+            <text x="90"  y="359" class="dt-sub">train from scratch?</text>
+
+            <path d="M 140 285 L 140 330" class="dt-arr"/>
+            <text x="145" y="305" class="dt-sub">MAYBE</text>
+
+            <path d="M 80 347 L 20 347 L 20 380" class="dt-arr"/>
+            <text x="25" y="360" class="dt-sub">YES</text>
+            <rect x="10" y="380" width="120" height="30" rx="5" class="dt-warn"/>
+            <text x="20" y="393" class="dt-lbl">MoE decoder-only</text>
+            <text x="18" y="406" class="dt-sub">Mixtral / DeepSeek-V3</text>
+
+            <path d="M 220 347 L 280 347" class="dt-no"/>
+            <text x="225" y="340" class="dt-sub">NO</text>
+            <rect x="280" y="330" width="140" height="35" rx="5" class="dt-acc"/>
+            <text x="293" y="346" class="dt-lbl">Dense decoder-only</text>
+            <text x="290" y="359" class="dt-sub">LLaMA-3, Qwen-2.5</text>
+
+            <rect x="460" y="170" width="200" height="35" rx="5" class="dt-box"/>
+            <text x="468" y="183" class="dt-lbl">Noisy/multilingual/OOV</text>
+            <text x="472" y="198" class="dt-sub">text? Morphology heavy?</text>
+
+            <path d="M 480 95 L 560 95 L 560 170" class="dt-arr"/>
+            <text x="565" y="120" class="dt-sub">NO-GEN</text>
+
+            <path d="M 560 205 L 560 250" class="dt-arr"/>
+            <text x="565" y="228" class="dt-sub">YES</text>
+            <rect x="470" y="250" width="180" height="35" rx="5" class="dt-acc"/>
+            <text x="482" y="263" class="dt-lbl">Byte-level model</text>
+            <text x="480" y="278" class="dt-sub">ByT5, MegaByte</text>
+
+            <path d="M 560 170 L 560 140 L 480 140 L 480 120" class="dt-no"/>
+            <text x="565" y="155" class="dt-sub">NO</text>
+            <rect x="440" y="80" width="100" height="35" rx="5" class="dt-acc"/>
+            <text x="448" y="94" class="dt-lbl">Encoder-only</text>
+            <text x="446" y="108" class="dt-sub">BERT, DeBERTa</text>
+        </svg>
+    </div>
+</section>
+
+<section class="slide" id="slide-09">
+    <div class="slide-number">09</div>
+    <h2>What to Take Away</h2>
+    <ul>
+        <li><strong>Hybrid SSM-attention (Jamba, Zamba) is the pragmatic long-context choice.</strong> 1:7 attention-to-Mamba ratio sits at the Pareto frontier of recall quality vs KV cache cost. Fits on a single 80GB GPU at 52B params. Shared attention in Zamba reduces KV cost further.</li>
+        <li><strong>Encoder-decoder is not dead.</strong> T5/FLAN-T5 still dominate translation, multilingual classification, structured extraction, and distillation targets for small production models. Bidirectional input processing is a genuine architectural advantage for input-conditioned tasks.</li>
+        <li><strong>FLAN-T5-XXL (11B) outperforms GPT-3 (175B) on zero-shot classification.</strong> Scale is not always the answer when architecture is more appropriate.</li>
+        <li><strong>ByT5 / byte-level models solve tokeniser brittleness.</strong> Mandatory for noisy text, low-resource languages, and adversarial robustness. The 3&ndash;4&times; sequence-length overhead is the cost; the encoder-heavy design (36 encoder layers) amortises it.</li>
+        <li><strong>Diffusion LMs are maturing but not yet dominant for general language.</strong> Code generation and structured output are likely the first production niches (Mercury, 2025).</li>
+        <li><strong>Use the decision tree.</strong> The main decision axes are: generation vs classification, input-conditioned vs free-form, context length, parameter budget, and tokeniser robustness requirements.</li>
+    </ul>
+
+    <div class="callout">
+        <div class="callout-label">Series complete</div>
+        <p>This concludes the Modern Architectures series. You have now covered MoE sparse gating (Arch 01), Mamba state-space models (Arch 02), long-context positional encoding and attention strategies (Arch 03), discrete diffusion language models (Arch 04), and the hybrid/encoder-decoder landscape (Arch 05). The <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Modern_Architectures">series index</a> links all five decks alongside the parent LLMs hub.</p>
+    </div>
+</section>
+
+<footer class="footer">
+    <p>Part of the <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Modern_Architectures">Modern Architectures Series</a></p>
+    <p style="margin-top: 0.5rem; font-size: 0.8rem;"><a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Modern_Architectures">Back to Series Index</a></p>
+</footer>
+<script>
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.slide').forEach(slide => {
+        slide.style.opacity = '0';
+        slide.style.transform = 'translateY(30px)';
+        slide.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(slide);
+    });
+</script>
+</body>
+</html>
