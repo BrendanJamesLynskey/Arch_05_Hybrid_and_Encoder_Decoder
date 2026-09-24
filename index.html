@@ -9,15 +9,15 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #0a0a0a;
-            --bg-card: #0d1117;
-            --bg-code: #161b22;
-            --text-primary: #e6edf3;
-            --text-secondary: #8b949e;
-            --accent: #76B900;
-            --accent-dim: #76B90044;
-            --accent-glow: #76B90033;
-            --border: #21262d;
+            --bg-primary: #1f1622;
+            --bg-card: #261b29;
+            --bg-code: #2e2231;
+            --text-primary: #f2ebe7;
+            --text-secondary: #aa9ba9;
+            --accent: #98b47e;
+            --accent-dim: #98b47e44;
+            --accent-glow: #98b47e33;
+            --border: #3e3042;
             --font-display: 'Space Grotesk', sans-serif;
             --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
             --font-body: 'Inter', sans-serif;
@@ -165,7 +165,7 @@
             border: 1px solid var(--border);
             padding: 0.05rem 0.35rem;
             border-radius: 3px;
-            color: #c9d1d9;
+            color: #ddd3d6;
         }
         .code-block {
             background: var(--bg-code);
@@ -178,7 +178,7 @@
             font-family: var(--font-mono);
             font-size: 0.75rem;
             color: var(--accent);
-            background: rgba(118, 185, 0, 0.08);
+            background: rgba(152,180,126,0.08);
             padding: 0.4rem 1rem;
             border-bottom: 1px solid var(--border);
         }
@@ -187,19 +187,19 @@
             font-family: var(--font-mono);
             font-size: 0.85rem;
             line-height: 1.6;
-            color: #c9d1d9;
+            color: #ddd3d6;
             background: transparent;
             border: none;
             padding: 0;
         }
-        .kw { color: #ff7b72; }
-        .fn { color: #d2a8ff; }
-        .str { color: #a5d6ff; }
-        .cm { color: #8b949e; font-style: italic; }
-        .num { color: #79c0ff; }
-        .type { color: #ffa657; }
-        .dir { color: #ff7b72; }
-        .mac { color: #ffa657; }
+        .kw { color: #e5816f; }
+        .fn { color: #e1b7e7; }
+        .str { color: #cad8e8; }
+        .cm { color: #aa9ba9; font-style: italic; }
+        .num { color: #aec7e1; }
+        .type { color: #dfb774; }
+        .dir { color: #e5816f; }
+        .mac { color: #dfb774; }
         .table-wrap {
             overflow-x: auto;
             margin: 1.25rem 0;
@@ -223,7 +223,7 @@
             color: var(--text-secondary);
         }
         tr:last-child td { border-bottom: none; }
-        tr:nth-child(even) td { background: rgba(13, 17, 23, 0.5); }
+        tr:nth-child(even) td { background: rgba(38,27,41,0.5); }
         .diagram-flow {
             display: flex;
             flex-wrap: wrap;
@@ -247,7 +247,7 @@
             text-align: center;
             white-space: nowrap;
         }
-        .diagram-box.accent { border-color: var(--accent); color: var(--accent); background: rgba(118, 185, 0, 0.08); }
+        .diagram-box.accent { border-color: var(--accent); color: var(--accent); background: rgba(152,180,126,0.08); }
         .diagram-box.dim { color: var(--text-secondary); border-color: var(--border); }
         .diagram-arrow { color: var(--accent); font-size: 1.3rem; font-weight: 700; }
         .diagram-vertical {
@@ -290,7 +290,7 @@
             border: 1px solid var(--border);
             color: var(--text-secondary);
         }
-        .hierarchy-item.accent { border-color: var(--accent); color: var(--accent); background: rgba(118, 185, 0, 0.08); }
+        .hierarchy-item.accent { border-color: var(--accent); color: var(--accent); background: rgba(152,180,126,0.08); }
         .diagram-grid {
             display: grid;
             gap: 0.75rem;
@@ -384,8 +384,8 @@
             margin-left: 0.3rem;
         }
         .badge.ok    { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
-        .badge.warn  { border-color: #ffa657; color: #ffa657; background: rgba(255,166,87,0.08); }
-        .badge.bad   { border-color: #ff7b72; color: #ff7b72; background: rgba(255,123,114,0.08); }
+        .badge.warn  { border-color: #dfb774; color: #dfb774; background: rgba(223,183,116,0.08); }
+        .badge.bad   { border-color: #e5816f; color: #e5816f; background: rgba(229,129,111,0.08); }
         @media (max-width: 640px) {
             .slide { padding: 3rem 1rem; min-height: auto; }
             .slide-number { font-size: 3rem; top: 1.5rem; right: 1rem; }
@@ -673,20 +673,20 @@ Total params: <span class="num">1.2</span>B vs T5-Large <span class="num">770</s
     <div class="canvas-wrap">
         <svg viewBox="0 0 680 400" width="680" height="400" xmlns="http://www.w3.org/2000/svg">
             <style>
-                .dt-box  { fill: #161b22; stroke: #30363d; stroke-width: 1; }
-                .dt-acc  { fill: rgba(118,185,0,0.10); stroke: #76B900; stroke-width: 1.5; }
-                .dt-warn { fill: rgba(255,166,87,0.08); stroke: #ffa657; stroke-width: 1.5; }
-                .dt-lbl  { fill: #e6edf3; font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 600; }
-                .dt-sub  { fill: #8b949e; font-family: 'JetBrains Mono', monospace; font-size: 9px; }
-                .dt-arr  { stroke: #76B900; stroke-width: 1.2; fill: none; marker-end: url(#mhdt); }
-                .dt-no   { stroke: #ffa657; stroke-width: 1.2; fill: none; marker-end: url(#modt); }
+                .dt-box  { fill: #2e2231; stroke: #4b3c4f; stroke-width: 1; }
+                .dt-acc  { fill: rgba(152,180,126,0.10); stroke: #98b47e; stroke-width: 1.5; }
+                .dt-warn { fill: rgba(223,183,116,0.08); stroke: #dfb774; stroke-width: 1.5; }
+                .dt-lbl  { fill: #f2ebe7; font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 600; }
+                .dt-sub  { fill: #aa9ba9; font-family: 'JetBrains Mono', monospace; font-size: 9px; }
+                .dt-arr  { stroke: #98b47e; stroke-width: 1.2; fill: none; marker-end: url(#mhdt); }
+                .dt-no   { stroke: #dfb774; stroke-width: 1.2; fill: none; marker-end: url(#modt); }
             </style>
             <defs>
                 <marker id="mhdt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#76B900"/>
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#98b47e"/>
                 </marker>
                 <marker id="modt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#ffa657"/>
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#dfb774"/>
                 </marker>
             </defs>
 
