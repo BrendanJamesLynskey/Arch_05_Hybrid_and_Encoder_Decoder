@@ -398,6 +398,7 @@
         }
     </style>
 <style>:root{font-synthesis-weight:none}</style>
+<style>.hero{overflow:hidden}</style>
 </head>
 <body>
 <header class="hero">
@@ -575,6 +576,11 @@
         <strong>Summarisation (extractive):</strong> Selecting spans from the input benefits from full bidirectional context. <br>
         <strong>Structured prediction with schema:</strong> Schema-constrained output (XML, SQL, JSON) where the encoder has processed the schema and the decoder generates a valid instantiation.
         </p>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">A causal encoder-decoder (2026)</div>
+        <p>DeepSeek-V4.1-Flash keeps a single causal token stream but splits its 40 layers into a 20-layer <em>causal</em> encoder and a 20-layer decoder whose keys and values are projected from the last encoder state, so prefill runs only the encoder (8B activated parameters per token) while decode runs the whole model (16B). <a style="color: var(--accent);" href="https://brendanjameslynskey.github.io/Arch_06_Asymmetric_Causal_Encoder_Decoder/">Arch 06 &mdash; Asymmetric Causal Encoder-Decoder</a> covers it.</p>
     </div>
 </section>
 
@@ -778,8 +784,8 @@ Total params: <span class="num">1.2</span>B vs T5-Large <span class="num">770</s
     </ul>
 
     <div class="callout">
-        <div class="callout-label">Series complete</div>
-        <p>This concludes the Modern Architectures series. You have now covered MoE sparse gating (Arch 01), Mamba state-space models (Arch 02), long-context positional encoding and attention strategies (Arch 03), discrete diffusion language models (Arch 04), and the hybrid/encoder-decoder landscape (Arch 05). The <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Modern_Architectures">series index</a> links all five decks alongside the parent LLMs hub.</p>
+        <div class="callout-label">Next</div>
+        <p>You have now covered MoE sparse gating (Arch 01), Mamba state-space models (Arch 02), long-context positional encoding and attention strategies (Arch 03), discrete diffusion language models (Arch 04), and the hybrid/encoder-decoder landscape (Arch 05). <a style="color: var(--accent);" href="https://brendanjameslynskey.github.io/Arch_06_Asymmetric_Causal_Encoder_Decoder/">Arch 06</a> takes the encoder-decoder idea back inside a causal model: an encoder-only prefill with asymmetric prefill and decode costs. The <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Modern_Architectures">series index</a> links all six decks alongside the parent LLMs hub.</p>
     </div>
 </section>
 
